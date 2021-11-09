@@ -316,6 +316,9 @@
     <Compile Include="FB_WyckoffWaveMode.Function.CS" />
     <Compile Include="TrendPower.Indicator.CS" />
     <Compile Include="TrendPower.Strategy.CS" />
+    <Compile Include="Clue.Function.CS" />
+    <Compile Include="MovilAverageDouble.Indicator.CS" />
+    <Compile Include="MobileAverageDouble.Indicator.CS" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

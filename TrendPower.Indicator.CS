@@ -22,9 +22,11 @@ namespace PowerLanguage.Indicator{
 		protected override void Create() {
 			powerLine = AddPlot(new PlotAttributes("Power", EPlotShapes.Histogram, Color.Cyan));
 		}
+
 		protected override void StartCalc() {
 			// assign inputs 
 		}
+		
 		protected override void CalcBar(){
 			double afast = AvgVal(fastLength); //Average price 4 short period
 			double aslow = AvgVal(slowLength); //Average price 4 long period
