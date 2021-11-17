@@ -321,6 +321,7 @@
     <Compile Include="MobileAverageDouble.Indicator.CS" />
     <Compile Include="ClueStrategy.Strategy.CS" />
     <Compile Include="StochasticWithRSI.Indicator.CS" />
+    <Compile Include="StochasticWithRSI.Strategy.CS" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
