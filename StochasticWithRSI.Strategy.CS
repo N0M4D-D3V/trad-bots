@@ -19,11 +19,13 @@ namespace PowerLanguage.Strategy {
         [Input] public int Length { get; set; }
 		[Input] public double OverBought { get; set; }
 		[Input] public double OverSold { get; set; }
+		[Input] public double StopLoss { get; set; }
 
 		public StochasticWithRSI(object _ctx):base(_ctx){
             OverBought = 70;
 			OverSold = 30;
             Length = 14;
+			StopLoss = 10;
 		}
 
 		protected override void Create() {
@@ -48,27 +50,26 @@ namespace PowerLanguage.Strategy {
 		}
 
 		protected override void CalcBar(){
-			 if (!TimeToTrade())
-            {
+			 if (!TimeToTrade()){
                 if (StrategyInfo.MarketPosition > 0){
 					exitShort.Send();
 					exitLong.Send();
 				}
-
                 return;
             }
 
 			rsi.Value = rsiIndicator[0];
-			if (this.CrossesUnder(rsi,OverBought)){
+			if (this.CrossesUnder(rsi, OverBought)){
 				//exitShort.Send();
 				exitLong.Send();
 				//enterShort.Send();
 			}
-			if (this.CrossesOver(rsi,OverSold)){
-				exitShort.Send();
+			if (this.CrossesOver(rsi, OverSold)){
+				//exitShort.Send();
 				//exitLong.Send();
 				enterLong.Send();
 			}
+			if(StrategyInfo.MarketPosition != 0) GenerateStopLoss(StopLoss);
 		}
 
 		private TimeSpan ConvertToTime(string timeToConvert){
