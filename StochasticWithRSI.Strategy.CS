@@ -8,7 +8,8 @@ namespace PowerLanguage.Strategy {
 	public class StochasticWithRSI : SignalObject {
 
 		private TimeSpan startTime, endTime;
-		private IOrderMarket enterLong, enterShort, exitLong, exitShort;
+		private IOrderMarket enterLong, exitLong;
+		private IOrderPriced stoploss;
 
 		private RSI rsiIndicator;
         private VariableSeries<Double> rsi;
@@ -19,25 +20,25 @@ namespace PowerLanguage.Strategy {
         [Input] public int Length { get; set; }
 		[Input] public double OverBought { get; set; }
 		[Input] public double OverSold { get; set; }
-		[Input] public double StopLoss { get; set; }
+		[Input] public double StoplossRate { get; set; }
 
 		public StochasticWithRSI(object _ctx):base(_ctx){
             OverBought = 70;
 			OverSold = 30;
             Length = 14;
-			StopLoss = 10;
+			StoplossRate = 0.05;
 		}
 
 		protected override void Create() {
-			StartTime = "8:00";
-			EndTime = "20:00";
+			StartTime = "10:00";
+			EndTime = "17:00";
 
 			rsiIndicator = new RSI(this);
             rsi = new VariableSeries<Double>(this);
 			enterLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "buy-order", EOrderAction.Buy));
-			enterShort = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "sell-short-order", EOrderAction.SellShort));
 			exitLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "sell-order", EOrderAction.Sell));
-			exitShort = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "buy-to-cover", EOrderAction.BuyToCover));
+
+			stoploss = OrderCreator.Stop(new SOrderParameters(Contracts.Default, "stoploss", EOrderAction.Sell, OrderExit.FromAll));
 		}
 
 		protected override void StartCalc() {
@@ -52,24 +53,32 @@ namespace PowerLanguage.Strategy {
 		protected override void CalcBar(){
 			 if (!TimeToTrade()){
                 if (StrategyInfo.MarketPosition > 0){
-					exitShort.Send();
 					exitLong.Send();
 				}
                 return;
             }
+			manageLong();
+			manageStoploss();
+		}
 
+		private void manageLong(){
 			rsi.Value = rsiIndicator[0];
 			if (this.CrossesUnder(rsi, OverBought)){
-				//exitShort.Send();
 				exitLong.Send();
-				//enterShort.Send();
 			}
 			if (this.CrossesOver(rsi, OverSold)){
-				//exitShort.Send();
-				//exitLong.Send();
 				enterLong.Send();
 			}
-			if(StrategyInfo.MarketPosition != 0) GenerateStopLoss(StopLoss);
+		}
+
+		private void manageStoploss(){
+			CurSpecOrdersMode = ESpecOrdersMode.PerContract;
+            if (StrategyInfo.MarketPosition > 0){
+                GenerateStopLoss(this.EntryPrice()*StoplossRate);
+				GenerateProfitTarget(50);
+            }else{
+                stoploss.Send(Bars.Close[0]*(1.0 - StoplossRate));
+            }
 		}
 
 		private TimeSpan ConvertToTime(string timeToConvert){
