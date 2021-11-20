@@ -26,7 +26,7 @@ namespace PowerLanguage.Strategy {
             OverBought = 70;
 			OverSold = 30;
             Length = 14;
-			StoplossRate = 0.05;
+			StoplossRate = 0.03;
 		}
 
 		protected override void Create() {
