@@ -7,12 +7,18 @@ using ATCenterProxy.interop;
 namespace PowerLanguage.Strategy {
 	public class StochasticWithRSI : SignalObject {
 
+		private RSI rsiIndicator;
+		private Stochastic stochasticIndicator;
+
 		private TimeSpan startTime, endTime;
 		private IOrderMarket enterLong, exitLong;
 		private IOrderPriced stoploss;
 
-		private RSI rsiIndicator;
         private VariableSeries<Double> rsi;
+		private VariableSeries<Double> stochasticFastK;
+        private VariableSeries<Double> stochasticFastD;
+        private VariableSeries<Double> stochasticSlowK;
+        private VariableSeries<Double> stochasticSlowD;
 		private ISeries<double> Price { get; set; }
 
 		[Input] public string StartTime { get; set; }
@@ -23,18 +29,19 @@ namespace PowerLanguage.Strategy {
 		[Input] public double StoplossRate { get; set; }
 
 		public StochasticWithRSI(object _ctx):base(_ctx){
-            OverBought = 70;
-			OverSold = 30;
-            Length = 14;
-			StoplossRate = 0.03;
+			SetDefaultConfig();
 		}
 
 		protected override void Create() {
-			StartTime = "10:00";
-			EndTime = "17:00";
-
 			rsiIndicator = new RSI(this);
+			stochasticIndicator = new Stochastic(this);
+
             rsi = new VariableSeries<Double>(this);
+			stochasticFastK = new VariableSeries<Double>(this);
+            stochasticFastD = new VariableSeries<Double>(this);
+            stochasticSlowK = new VariableSeries<Double>(this);
+            stochasticSlowD = new VariableSeries<Double>(this);
+
 			enterLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "buy-order", EOrderAction.Buy));
 			exitLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "sell-order", EOrderAction.Sell));
 
@@ -46,8 +53,27 @@ namespace PowerLanguage.Strategy {
             endTime = ConvertToTime(EndTime);
 
 			Price = Bars.Close;
+			StartCalcRSI();
+			StartCalcStochastic();
+		}
+
+		private void StartCalcRSI(){
             rsiIndicator.price = Price;
             rsiIndicator.length = Length;
+		}
+
+		private void StartCalcStochastic(){
+			stochasticIndicator.priceh = Bars.High;
+            stochasticIndicator.pricel = Bars.Low;
+            stochasticIndicator.pricec = Bars.Close;
+            stochasticIndicator.stochlength = Length;
+            stochasticIndicator.length1 = 3;
+            stochasticIndicator.length2 = 3;
+            stochasticIndicator.smoothingtype = 1;
+            stochasticIndicator.ofastk = stochasticFastK;
+            stochasticIndicator.ofastd = stochasticFastD;
+            stochasticIndicator.oslowk = stochasticSlowK;
+            stochasticIndicator.oslowd = stochasticSlowD;
 		}
 
 		protected override void CalcBar(){
@@ -57,18 +83,32 @@ namespace PowerLanguage.Strategy {
 				}
                 return;
             }
-			manageLong();
+			manageLongPosition();
 			manageStoploss();
 		}
 
-		private void manageLong(){
+		private void manageLongPosition(){
 			rsi.Value = rsiIndicator[0];
-			if (this.CrossesUnder(rsi, OverBought)){
+			stochasticIndicator.Call();
+
+			if (this.CrossesUnder(rsi, OverBought) || isStochasticIndicatingExit()){
 				exitLong.Send();
 			}
-			if (this.CrossesOver(rsi, OverSold)){
+			if (this.CrossesOver(rsi, OverSold) && isStochasticIndicatingEnter()){
 				enterLong.Send();
 			}
+		}
+
+		private bool isStochasticIndicatingEnter(){
+			return Bars.CurrentBar > 2
+                && stochasticSlowK.CrossesOver(stochasticSlowD, ExecInfo.MaxBarsBack)
+                && PublicFunctions.DoubleLess(stochasticSlowK.Value, OverSold);
+		}
+
+		private bool isStochasticIndicatingExit(){
+			return (Bars.CurrentBar > 2
+                && stochasticSlowK.CrossesUnder(stochasticSlowD, ExecInfo.MaxBarsBack)
+                && PublicFunctions.DoubleGreater(stochasticSlowK.Value, OverBought));
 		}
 
 		private void manageStoploss(){
@@ -95,5 +135,14 @@ namespace PowerLanguage.Strategy {
 
             return (barTime > startTime) || (barTime < endTime);
         }
+
+		private void SetDefaultConfig(){
+            OverBought = 70;
+			OverSold = 30;
+            Length = 14;
+			StoplossRate = 0.03;
+			StartTime = "10:00";
+			EndTime = "17:00";
+		}
 	}
 }
