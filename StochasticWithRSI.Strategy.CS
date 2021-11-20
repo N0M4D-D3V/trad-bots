@@ -30,6 +30,7 @@ namespace PowerLanguage.Strategy {
 		[Input] public double OverBought { get; set; }
 		[Input] public double OverSold { get; set; }
 		[Input] public double StoplossRate { get; set; }
+		[Input] public int NumberOfContracts { get; set; }
 
 		public StochasticWithRSI(object _ctx):base(_ctx){
 			SetDefaultConfig();
@@ -47,10 +48,10 @@ namespace PowerLanguage.Strategy {
             stochasticSlowK = new VariableSeries<Double>(this);
             stochasticSlowD = new VariableSeries<Double>(this);
 
-			enterLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "buy-order", EOrderAction.Buy));
-			exitLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.Default, "sell-order", EOrderAction.Sell));
+			enterLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.UserSpecified, "buy-order", EOrderAction.Buy));
+			exitLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.UserSpecified, "sell-order", EOrderAction.Sell));
 
-			stoploss = OrderCreator.Stop(new SOrderParameters(Contracts.Default, "stoploss", EOrderAction.Sell, OrderExit.FromAll));
+			stoploss = OrderCreator.Stop(new SOrderParameters(Contracts.UserSpecified, "stoploss", EOrderAction.Sell, OrderExit.FromAll));
 		}
 
 		protected override void StartCalc() {
@@ -88,9 +89,9 @@ namespace PowerLanguage.Strategy {
 		}
 
 		protected override void CalcBar(){
-			 if (!TimeToTrade()){
+			 if (!isTimeToTrade()){
                 if (StrategyInfo.MarketPosition > 0){
-					exitLong.Send();
+					exitLong.Send(NumberOfContracts);
 				}
                 return;
             }
@@ -104,10 +105,10 @@ namespace PowerLanguage.Strategy {
 			stochasticIndicator.Call();
 
 			if (isMovAverageIndicatingExit()){
-				exitLong.Send();
+				exitLong.Send(NumberOfContracts);
 			}
 			if (this.CrossesOver(rsi, OverSold) && isStochasticIndicatingEnter()){
-				enterLong.Send();
+				enterLong.Send(NumberOfContracts);
 			}
 		}
 
@@ -115,12 +116,6 @@ namespace PowerLanguage.Strategy {
 			return Bars.CurrentBar > 2
                 && stochasticSlowK.CrossesOver(stochasticSlowD, ExecInfo.MaxBarsBack)
                 && PublicFunctions.DoubleLess(stochasticSlowK.Value, OverSold);
-		}
-
-		private bool isStochasticIndicatingExit(){
-			return (Bars.CurrentBar > 2
-                && stochasticSlowK.CrossesUnder(stochasticSlowD, ExecInfo.MaxBarsBack)
-                && PublicFunctions.DoubleGreater(stochasticSlowK.Value, OverBought));
 		}
 
 		private bool isMovAverageIndicatingExit(){
@@ -138,13 +133,11 @@ namespace PowerLanguage.Strategy {
 		}
 
 		private TimeSpan ConvertToTime(string timeToConvert){
-            DateTime dt = DateTime.ParseExact(timeToConvert, "H:mm",
-                System.Globalization.CultureInfo.InvariantCulture);
-
+            DateTime dt = DateTime.ParseExact(timeToConvert, "H:mm", System.Globalization.CultureInfo.InvariantCulture);
             return dt.TimeOfDay;
         }
 
-		private bool TimeToTrade(){
+		private bool isTimeToTrade(){
             TimeSpan barTime = Bars.TimeValue.TimeOfDay;
             if (startTime < endTime)
                 return (barTime >= startTime) && (barTime <= endTime);
@@ -158,6 +151,7 @@ namespace PowerLanguage.Strategy {
             Length = 14;
 			AverageLength = 9;
 			StoplossRate = 0.05;
+			NumberOfContracts = 1;
 			StartTime = "10:00";
 			EndTime = "17:00";
 		}
