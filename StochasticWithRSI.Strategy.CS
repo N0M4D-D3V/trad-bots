@@ -9,12 +9,14 @@ namespace PowerLanguage.Strategy {
 
 		private RSI rsiIndicator;
 		private Stochastic stochasticIndicator;
+		private AverageFC movAverageIndicator;
 
 		private TimeSpan startTime, endTime;
 		private IOrderMarket enterLong, exitLong;
 		private IOrderPriced stoploss;
 
         private VariableSeries<Double> rsi;
+		private VariableSeries<Double> average;
 		private VariableSeries<Double> stochasticFastK;
         private VariableSeries<Double> stochasticFastD;
         private VariableSeries<Double> stochasticSlowK;
@@ -24,6 +26,7 @@ namespace PowerLanguage.Strategy {
 		[Input] public string StartTime { get; set; }
 		[Input] public string EndTime { get; set; }
         [Input] public int Length { get; set; }
+		[Input] public int AverageLength { get; set; }
 		[Input] public double OverBought { get; set; }
 		[Input] public double OverSold { get; set; }
 		[Input] public double StoplossRate { get; set; }
@@ -35,8 +38,10 @@ namespace PowerLanguage.Strategy {
 		protected override void Create() {
 			rsiIndicator = new RSI(this);
 			stochasticIndicator = new Stochastic(this);
+			movAverageIndicator = new AverageFC(this);
 
             rsi = new VariableSeries<Double>(this);
+			average = new VariableSeries<Double>(this);
 			stochasticFastK = new VariableSeries<Double>(this);
             stochasticFastD = new VariableSeries<Double>(this);
             stochasticSlowK = new VariableSeries<Double>(this);
@@ -54,12 +59,18 @@ namespace PowerLanguage.Strategy {
 
 			Price = Bars.Close;
 			StartCalcRSI();
+			StartCalcMovAverage();
 			StartCalcStochastic();
 		}
 
 		private void StartCalcRSI(){
             rsiIndicator.price = Price;
             rsiIndicator.length = Length;
+		}
+
+		private void StartCalcMovAverage(){
+			movAverageIndicator.price = Bars.Close;
+            movAverageIndicator.length = Length;
 		}
 
 		private void StartCalcStochastic(){
@@ -89,9 +100,10 @@ namespace PowerLanguage.Strategy {
 
 		private void manageLongPosition(){
 			rsi.Value = rsiIndicator[0];
+			average.Value = movAverageIndicator[0];
 			stochasticIndicator.Call();
 
-			if (this.CrossesUnder(rsi, OverBought) || isStochasticIndicatingExit()){
+			if (isMovAverageIndicatingExit()){
 				exitLong.Send();
 			}
 			if (this.CrossesOver(rsi, OverSold) && isStochasticIndicatingEnter()){
@@ -109,6 +121,10 @@ namespace PowerLanguage.Strategy {
 			return (Bars.CurrentBar > 2
                 && stochasticSlowK.CrossesUnder(stochasticSlowD, ExecInfo.MaxBarsBack)
                 && PublicFunctions.DoubleGreater(stochasticSlowK.Value, OverBought));
+		}
+
+		private bool isMovAverageIndicatingExit(){
+			return (Bars.CurrentBar > 1 && Bars.Close.CrossesUnder(average, ExecInfo.MaxBarsBack));
 		}
 
 		private void manageStoploss(){
@@ -140,7 +156,8 @@ namespace PowerLanguage.Strategy {
             OverBought = 70;
 			OverSold = 30;
             Length = 14;
-			StoplossRate = 0.03;
+			AverageLength = 9;
+			StoplossRate = 0.05;
 			StartTime = "10:00";
 			EndTime = "17:00";
 		}
