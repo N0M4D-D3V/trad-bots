@@ -150,7 +150,7 @@ namespace PowerLanguage.Strategy {
 			OverSold = 30;
             Length = 14;
 			AverageLength = 9;
-			StoplossRate = 0.05;
+			StoplossRate = 0.09;
 			NumberOfContracts = 1;
 			StartTime = "10:00";
 			EndTime = "17:00";
