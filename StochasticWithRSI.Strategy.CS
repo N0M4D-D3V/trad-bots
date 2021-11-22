@@ -29,7 +29,8 @@ namespace PowerLanguage.Strategy {
 		[Input] public int AverageLength { get; set; }
 		[Input] public double OverBought { get; set; }
 		[Input] public double OverSold { get; set; }
-		[Input] public double StoplossRate { get; set; }
+		[Input] public double TargetProfitValue {get; set;}
+		[Input] public double StoplossValue { get; set; }
 		[Input] public int NumberOfContracts { get; set; }
 
 		public StochasticWithRSI(object _ctx):base(_ctx){
@@ -125,10 +126,10 @@ namespace PowerLanguage.Strategy {
 		private void manageStoploss(){
 			CurSpecOrdersMode = ESpecOrdersMode.PerContract;
             if (StrategyInfo.MarketPosition > 0){
-                GenerateStopLoss(this.EntryPrice()*StoplossRate);
-				GenerateProfitTarget(50);
+                GenerateStopLoss(StoplossValue);
+				GenerateProfitTarget(TargetProfitValue);
             }else{
-                stoploss.Send(Bars.Close[0]*(1.0 - StoplossRate));
+                stoploss.Send(StoplossValue);
             }
 		}
 
@@ -150,7 +151,8 @@ namespace PowerLanguage.Strategy {
 			OverSold = 30;
             Length = 14;
 			AverageLength = 9;
-			StoplossRate = 0.09;
+			TargetProfitValue = 50;
+			StoplossValue = 400;
 			NumberOfContracts = 1;
 			StartTime = "10:00";
 			EndTime = "17:00";
