@@ -21,7 +21,11 @@ namespace PowerLanguage.Strategy {
         private VariableSeries<Double> stochasticFastD;
         private VariableSeries<Double> stochasticSlowK;
         private VariableSeries<Double> stochasticSlowD;
+
+		private VariableObject<Int32> movAverageCounter;
 		private ISeries<double> Price { get; set; }
+
+		[Input] public int ConfirmBars { get; set; }
 
 		[Input] public string StartTime { get; set; }
 		[Input] public string EndTime { get; set; }
@@ -49,6 +53,7 @@ namespace PowerLanguage.Strategy {
             stochasticFastD = new VariableSeries<Double>(this);
             stochasticSlowK = new VariableSeries<Double>(this);
             stochasticSlowD = new VariableSeries<Double>(this);
+			movAverageCounter = new VariableObject<int>(this);
 
 			enterLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.UserSpecified, "buy-order", EOrderAction.Buy));
 			exitLong = OrderCreator.MarketNextBar(new SOrderParameters(Contracts.UserSpecified, "sell-order", EOrderAction.Sell));
@@ -91,7 +96,7 @@ namespace PowerLanguage.Strategy {
 		}
 
 		protected override void CalcBar(){
-			 if (!isTimeToTrade()){
+			if (!isTimeToTrade()){
                 if (StrategyInfo.MarketPosition > 0){
 					exitLong.Send(NumberOfContracts);
 				}
@@ -106,10 +111,19 @@ namespace PowerLanguage.Strategy {
 			average.Value = movAverageIndicator[0];
 			stochasticIndicator.Call();
 
+			if (PublicFunctions.DoubleGreater(Price[0], average.Value)){
+                ++movAverageCounter.Value;
+            }
+            else{
+                movAverageCounter.Value = 0;
+            }
+
 			if (isMovAverageIndicatingExit()){
 				exitLong.Send(NumberOfContracts);
 			}
-			if (this.CrossesOver(rsi, OverSold) && isStochasticIndicatingEnter()){
+
+			//this.CrossesOver(rsi, OverSold)
+			if ( isMovAverageIndicatingEnter() && isStochasticIndicatingEnter() ){
 				enterLong.Send(NumberOfContracts);
 			}
 		}
@@ -118,6 +132,11 @@ namespace PowerLanguage.Strategy {
 			return Bars.CurrentBar > 2
                 && stochasticSlowK.CrossesOver(stochasticSlowD, ExecInfo.MaxBarsBack)
                 && PublicFunctions.DoubleLess(stochasticSlowK.Value, OverSold);
+		}
+
+		private bool isMovAverageIndicatingEnter(){
+			return (PublicFunctions.DoubleGreater(Bars.CurrentBar, ConfirmBars)
+                 && movAverageCounter.Value == ConfirmBars);
 		}
 
 		private bool isMovAverageIndicatingExit(){
@@ -156,6 +175,7 @@ namespace PowerLanguage.Strategy {
 			TargetProfitRate = 0.125;
 			StoplossRate = 1.0;
 			NumberOfContracts = 1;
+			ConfirmBars = 1;
 			StartTime = "10:00";
 			EndTime = "17:00";
 		}
